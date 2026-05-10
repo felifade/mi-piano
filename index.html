@@ -22,7 +22,10 @@
   <header class="topbar">
     <div class="brand">
       <span class="logo" aria-hidden="true">🎼</span>
-      <h1>Mi Piano</h1>
+      <div class="title">
+        <h1>Mi Piano</h1>
+        <p class="subtitle">Para <strong>Rosa</strong>, con cariño de <strong>tu hijo Felipe</strong> ♡</p>
+      </div>
     </div>
     <div class="topbar-actions">
       <label class="btn ghost" for="file-input">
@@ -67,6 +70,19 @@
   <div id="splash" class="splash" hidden>
     <div class="splash-card">
       <p>Cargando piano…</p>
+    </div>
+  </div>
+
+  <!-- Pantalla de Día de las Madres — se muestra al abrir, se cierra sola -->
+  <div id="dedication" class="dedication" role="dialog" aria-label="Mensaje de Día de las Madres">
+    <div class="dedication-card">
+      <div class="d-hearts" aria-hidden="true">♡</div>
+      <p class="d-greeting">Feliz día<br>de las Madres</p>
+      <h2 class="d-name">Rosa</h2>
+      <div class="d-rule" aria-hidden="true"></div>
+      <p class="d-from">Con todo mi cariño,<br>de <strong>tu hijo Felipe</strong></p>
+      <p class="d-date">Mayo 2026</p>
+      <button id="d-close" class="d-button" type="button">Tocar piano <span aria-hidden="true">▶</span></button>
     </div>
   </div>
 

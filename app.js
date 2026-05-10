@@ -110,6 +110,7 @@ const $ = (id) => document.getElementById(id);
 function init() {
   // Red de seguridad: el splash nunca debería verse al iniciar
   showSplash(false);
+  setupDedication();
   buildPiecesNav();
   hookControls();
   // Teclado visual abajo
@@ -120,6 +121,27 @@ function init() {
   whenAbcjsReady(() => {
     abcjsReady = true;
     renderPiece(pendingABC);
+  });
+}
+
+/* ---------- Pantalla de Día de las Madres ---------- */
+function setupDedication() {
+  const el = $('dedication');
+  if (!el) return;
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    el.classList.add('closing');
+    setTimeout(() => { el.hidden = true; }, 450);
+  };
+  // Cierre automático tras 6 segundos
+  const autoId = setTimeout(close, 6000);
+  // Botón "Tocar piano"
+  $('d-close').addEventListener('click', () => { clearTimeout(autoId); close(); });
+  // Tocar fuera de la tarjeta también cierra
+  el.addEventListener('click', (e) => {
+    if (e.target === el) { clearTimeout(autoId); close(); }
   });
 }
 
