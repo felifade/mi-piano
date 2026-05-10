@@ -112,6 +112,10 @@ function init() {
   showSplash(false);
   buildPiecesNav();
   hookControls();
+  // Teclado visual abajo
+  if (window.PianoKeyboard) {
+    PianoKeyboard.init(document.getElementById('keyboard'));
+  }
   // abcjs se carga con defer; esperamos a que esté listo
   whenAbcjsReady(() => {
     abcjsReady = true;
@@ -152,6 +156,7 @@ function selectPiece(piece, btnEl) {
   }
   isPlaying = false;
   updatePlayBtn();
+  if (window.PianoKeyboard) PianoKeyboard.clearAll();
   renderPiece(piece.abc);
 }
 
@@ -199,11 +204,13 @@ const cursorControl = {
       lastHighlight.classList.remove('current-note');
       lastHighlight = null;
     }
+    if (window.PianoKeyboard) PianoKeyboard.clearAll();
     isPlaying = false;
     updatePlayBtn();
   },
   onBeat: function () {},
   onEvent: function (ev) {
+    // 1) Resaltar la nota en la partitura
     if (lastHighlight) lastHighlight.classList.remove('current-note');
     if (ev.elements && ev.elements.length) {
       const group = ev.elements[0];
@@ -217,6 +224,18 @@ const cursorControl = {
         if (rect.bottom > vh - 180 || rect.top < 80) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+      }
+    }
+
+    // 2) Iluminar las teclas del piano que están sonando ahora
+    if (window.PianoKeyboard) {
+      PianoKeyboard.clearAll();
+      if (ev.midiPitches && ev.midiPitches.length) {
+        ev.midiPitches.forEach((p) => {
+          if (p && typeof p.pitch === 'number') {
+            PianoKeyboard.lightKey(p.pitch, true);
+          }
+        });
       }
     }
   }
@@ -288,10 +307,14 @@ async function onTogglePlay() {
   }
   showSplash(false);
   // play() del controlador alterna entre reproducir y pausar
+  const wasPlaying = isPlaying;
   synthControl.play();
-  // El estado real se confirma vía onStart/onFinished. Optimismo intermedio:
-  isPlaying = !isPlaying;
+  isPlaying = !wasPlaying;
   updatePlayBtn();
+  // Si pausamos, apagar las teclas (no se dispara onFinished al pausar)
+  if (wasPlaying && window.PianoKeyboard) {
+    PianoKeyboard.clearAll();
+  }
 }
 
 function onRestart() {
