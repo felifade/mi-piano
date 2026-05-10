@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Mi Piano — Partituras con sonido</title>
+
+  <!-- PWA / iPad -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Mi Piano">
+  <meta name="theme-color" content="#f5ead4">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🎼</span>
+      <h1>Mi Piano</h1>
+    </div>
+    <div class="topbar-actions">
+      <label class="btn ghost" for="file-input">
+        <span aria-hidden="true">📂</span> Subir partitura
+      </label>
+      <input id="file-input" type="file" accept=".abc,.txt" hidden>
+    </div>
+  </header>
+
+  <nav class="pieces" id="pieces" aria-label="Piezas"></nav>
+
+  <main class="paper-wrap">
+    <div id="paper" class="paper" aria-label="Partitura"></div>
+    <div id="paper-empty" class="paper-empty" hidden>
+      <p>No se pudo dibujar la partitura.</p>
+    </div>
+  </main>
+
+  <footer class="controls" role="toolbar" aria-label="Controles de reproducción">
+    <button id="btn-restart" class="ctrl" aria-label="Reiniciar">
+      <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+    </button>
+
+    <button id="btn-play" class="ctrl primary" aria-label="Reproducir">
+      <svg id="icon-play" viewBox="0 0 24 24" width="44" height="44" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+      <svg id="icon-pause" viewBox="0 0 24 24" width="44" height="44" aria-hidden="true" hidden><path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+    </button>
+
+    <div class="tempo">
+      <div class="tempo-label">
+        <span>Velocidad</span>
+        <strong id="tempo-value">100%</strong>
+      </div>
+      <input id="tempo" type="range" min="40" max="160" value="100" step="5" aria-label="Velocidad de reproducción">
+    </div>
+  </footer>
+
+  <div id="splash" class="splash" hidden>
+    <div class="splash-card">
+      <p>Cargando piano…</p>
+    </div>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

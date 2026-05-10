@@ -1,0 +1,16 @@
+{
+  "name": "Mi Piano",
+  "short_name": "Mi Piano",
+  "description": "Partituras con sonido de piano real. Para tocar y aprender en iPad.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5ead4",
+  "theme_color": "#f5ead4",
+  "lang": "es",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

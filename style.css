@@ -1,0 +1,266 @@
+/* ===== Mi Piano — estilos ===== */
+:root {
+  --bg-1: #f8efdc;
+  --bg-2: #efe1c1;
+  --paper: #fffdf6;
+  --ink: #2c2519;
+  --ink-soft: #6a5d44;
+  --accent: #b8732e;       /* ámbar cálido */
+  --accent-strong: #8a4f17;
+  --hl: #d9531e;           /* nota actual */
+  --line: rgba(60, 45, 20, 0.18);
+  --shadow: 0 8px 30px rgba(80, 55, 20, 0.12);
+  --radius: 18px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #fff5e0 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, #f6e0bf 0%, transparent 55%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ===== Top bar ===== */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px 6px;
+}
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.brand h1 {
+  font-size: 22px;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.brand .logo { font-size: 24px; }
+
+.topbar-actions { display: flex; gap: 8px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink);
+  font-size: 15px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.06s ease, background 0.15s ease;
+}
+.btn:active { transform: scale(0.97); }
+.btn.ghost { background: rgba(255, 255, 255, 0.4); }
+
+/* ===== Piezas ===== */
+.pieces {
+  display: flex;
+  gap: 10px;
+  padding: 6px 22px 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.pieces::-webkit-scrollbar { display: none; }
+
+.piece {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.55);
+  display: grid;
+  text-align: left;
+  gap: 2px;
+  cursor: pointer;
+  min-width: 150px;
+  touch-action: manipulation;
+  transition: background 0.15s ease, transform 0.06s ease, border-color 0.15s ease;
+}
+.piece:active { transform: scale(0.98); }
+.piece .t {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.piece .c {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.piece.active {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+}
+.piece.active .t,
+.piece.active .c { color: #fff8eb; }
+
+/* ===== Hoja de partitura ===== */
+.paper-wrap {
+  padding: 0 22px 12px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+.paper {
+  background: var(--paper);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  width: 100%;
+  max-width: 1100px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.paper svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+.paper-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+/* Nota actual (resaltada en tiempo real) */
+.abcjs-note.current-note,
+.abcjs-rest.current-note,
+.abcjs-note.abcjs-note_selected,
+.current-note {
+  fill: var(--hl) !important;
+  stroke: var(--hl) !important;
+}
+.abcjs-note.current-note path,
+.current-note path,
+.current-note ellipse,
+.current-note rect {
+  fill: var(--hl) !important;
+  stroke: var(--hl) !important;
+}
+
+/* ===== Controles ===== */
+.controls {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 22px calc(14px + env(safe-area-inset-bottom));
+  background: rgba(255, 253, 246, 0.85);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-top: 1px solid var(--line);
+}
+
+.ctrl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #fffdf6;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.06s ease, background 0.15s ease;
+}
+.ctrl:active { transform: scale(0.94); }
+.ctrl.primary {
+  width: 76px;
+  height: 76px;
+  background: linear-gradient(180deg, #d97a2a 0%, #a85213 100%);
+  color: #fff;
+  border-color: var(--accent-strong);
+  box-shadow: 0 6px 18px rgba(150, 80, 20, 0.35);
+}
+
+.tempo {
+  display: grid;
+  gap: 6px;
+}
+.tempo-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.tempo-label strong { color: var(--ink); font-weight: 600; }
+
+.tempo input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 30px;
+  background: transparent;
+  touch-action: manipulation;
+}
+.tempo input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent) var(--p, 50%), rgba(60, 45, 20, 0.18) var(--p, 50%), rgba(60, 45, 20, 0.18) 100%);
+}
+.tempo input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fffdf6;
+  border: 2px solid var(--accent-strong);
+  margin-top: -10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* ===== Splash ===== */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(248, 239, 220, 0.85);
+  backdrop-filter: blur(6px);
+  z-index: 50;
+}
+.splash-card {
+  background: #fff;
+  padding: 18px 24px;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  color: var(--ink-soft);
+}
+
+/* ===== Responsivo ===== */
+@media (max-width: 640px) {
+  .topbar { padding: 10px 14px 4px; }
+  .brand h1 { font-size: 19px; }
+  .pieces { padding: 4px 14px 10px; }
+  .paper-wrap { padding: 0 10px 8px; }
+  .controls { grid-template-columns: auto auto 1fr; padding: 10px 14px calc(14px + env(safe-area-inset-bottom)); }
+  .ctrl { width: 50px; height: 50px; }
+  .ctrl.primary { width: 64px; height: 64px; }
+  .ctrl.primary svg { width: 36px; height: 36px; }
+}
