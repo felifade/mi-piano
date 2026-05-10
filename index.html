@@ -17,6 +17,9 @@
 
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.7/build/opensheetmusicdisplay.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -31,7 +34,7 @@
       <label class="btn ghost" for="file-input">
         <span aria-hidden="true">📂</span> Subir partitura
       </label>
-      <input id="file-input" type="file" accept=".abc,.txt" hidden>
+      <input id="file-input" type="file" accept=".abc,.txt,.musicxml,.xml,.mxl" hidden>
     </div>
   </header>
 
@@ -87,6 +90,7 @@
   </div>
 
   <script src="keyboard.js" defer></script>
+  <script src="xml-player.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

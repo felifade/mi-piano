@@ -157,6 +157,11 @@ body {
   color: var(--ink-soft);
 }
 
+/* OSMD (MusicXML) — el cursor se pinta en el color de la app y la partitura tiene márgenes razonables */
+.paper #osmdSvgPage1,
+.paper .osmd-container svg { max-width: 100%; height: auto; }
+.paper > svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+
 /* Nota actual (resaltada en tiempo real) */
 .abcjs-note.current-note,
 .abcjs-rest.current-note,

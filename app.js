@@ -103,6 +103,9 @@ let currentTempoPct = 100;
 let lastHighlight = null;
 let abcjsReady = false;
 let pendingABC = PIECES[0].abc;
+// Modo activo: 'abc' (abcjs) o 'xml' (OSMD + Tone.js)
+let currentMode = 'abc';
+let xmlPlayerInitialized = false;
 
 const $ = (id) => document.getElementById(id);
 
@@ -122,6 +125,38 @@ function init() {
     abcjsReady = true;
     renderPiece(pendingABC);
   });
+}
+
+/* ---------- Inicializar XmlPlayer cuando se necesite (perezoso) ---------- */
+function ensureXmlPlayerInit() {
+  if (xmlPlayerInitialized) return true;
+  if (typeof opensheetmusicdisplay === 'undefined' || typeof Tone === 'undefined') {
+    return false; // todavía no cargaron las librerías
+  }
+  if (!window.XmlPlayer) return false;
+  const ok = XmlPlayer.init(document.getElementById('paper'));
+  if (!ok) return false;
+
+  // Cuando XmlPlayer dispare una nota, iluminamos el teclado
+  XmlPlayer.setNoteCallback((notes) => {
+    if (!window.PianoKeyboard) return;
+    PianoKeyboard.clearAll();
+    notes.forEach((n) => {
+      if (typeof n.midi === 'number') PianoKeyboard.lightKey(n.midi, true);
+    });
+  });
+  XmlPlayer.setStartCallback(() => {
+    isPlaying = true;
+    updatePlayBtn();
+  });
+  XmlPlayer.setFinishedCallback(() => {
+    isPlaying = false;
+    updatePlayBtn();
+    if (window.PianoKeyboard) PianoKeyboard.clearAll();
+  });
+
+  xmlPlayerInitialized = true;
+  return true;
 }
 
 /* ---------- Pantalla de Día de las Madres ---------- */
@@ -172,13 +207,17 @@ function buildPiecesNav() {
 function selectPiece(piece, btnEl) {
   document.querySelectorAll('.piece').forEach((b) => b.classList.remove('active'));
   btnEl.classList.add('active');
-  // Si está sonando, lo paramos antes de cambiar
+  // Si estaba sonando algo (abc o xml), parar antes de cambiar
+  if (currentMode === 'xml' && window.XmlPlayer) {
+    XmlPlayer.stop();
+  }
   if (isPlaying && synthControl) {
     synthControl.pause();
   }
   isPlaying = false;
   updatePlayBtn();
   if (window.PianoKeyboard) PianoKeyboard.clearAll();
+  currentMode = 'abc';
   renderPiece(piece.abc);
 }
 
@@ -310,6 +349,11 @@ function hookControls() {
 }
 
 async function onTogglePlay() {
+  if (currentMode === 'xml') return onTogglePlayXml();
+  return onTogglePlayAbc();
+}
+
+async function onTogglePlayAbc() {
   if (!visualObj) return;
   showSplash(true);
   // Timeout de seguridad: si el soundfont tarda >25s, no dejamos al usuario colgado
@@ -339,7 +383,42 @@ async function onTogglePlay() {
   }
 }
 
-function onRestart() {
+async function onTogglePlayXml() {
+  if (!window.XmlPlayer || !XmlPlayer.isReady()) return;
+  // Si arranca por primera vez, mostrar splash mientras cargan las muestras
+  const willStart = !XmlPlayer.isPlaying();
+  if (willStart) {
+    showSplash(true);
+    const timeoutId = setTimeout(() => {
+      showSplash(false);
+      alert('El sonido del piano tardó demasiado en cargar. Probá tocar Play de nuevo (la 2ª vez suele andar más rápido).');
+    }, 30000);
+    try {
+      await XmlPlayer.togglePlay();
+      clearTimeout(timeoutId);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      console.error('XmlPlayer falló:', e);
+      alert('No se pudo reproducir la partitura: ' + (e && e.message ? e.message : 'error desconocido'));
+      showSplash(false);
+      return;
+    }
+    showSplash(false);
+  } else {
+    await XmlPlayer.togglePlay();
+    if (window.PianoKeyboard) PianoKeyboard.clearAll();
+  }
+  isPlaying = XmlPlayer.isPlaying();
+  updatePlayBtn();
+}
+
+async function onRestart() {
+  if (currentMode === 'xml') {
+    if (window.XmlPlayer && XmlPlayer.isReady()) {
+      await XmlPlayer.restart();
+    }
+    return;
+  }
   if (!synthControl) return;
   synthControl.restart();
   if (!isPlaying) {
@@ -351,6 +430,10 @@ function onTempo(e) {
   currentTempoPct = parseInt(e.target.value, 10) || 100;
   $('tempo-value').textContent = currentTempoPct + '%';
   paintTempo(currentTempoPct);
+  if (currentMode === 'xml') {
+    if (window.XmlPlayer) XmlPlayer.setTempo(currentTempoPct);
+    return;
+  }
   if (synthControl && !needsReload) {
     synthControl.setWarp(currentTempoPct);
   }
@@ -372,25 +455,105 @@ function showSplash(on) {
   $('splash').hidden = !on;
 }
 
-/* ---------- Subir archivo .abc ---------- */
-function onFile(e) {
+/* ---------- Subir partitura: detecta .abc o MusicXML (.musicxml, .xml, .mxl) ---------- */
+async function onFile(e) {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const abc = String(reader.result || '');
-    if (!abc.includes('X:')) {
-      alert('El archivo no parece ser una partitura ABC válida. Buscá archivos .abc en abcnotation.com.');
-      return;
+  const name = (file.name || '').toLowerCase();
+  const ext = name.split('.').pop();
+
+  // Limpiar lo que estaba pasando
+  document.querySelectorAll('.piece').forEach((b) => b.classList.remove('active'));
+  if (currentMode === 'abc' && isPlaying && synthControl) synthControl.pause();
+  if (currentMode === 'xml' && window.XmlPlayer) XmlPlayer.stop();
+  isPlaying = false;
+  updatePlayBtn();
+  if (window.PianoKeyboard) PianoKeyboard.clearAll();
+
+  try {
+    if (ext === 'musicxml' || ext === 'xml' || ext === 'mxl') {
+      await loadMusicXmlFile(file, ext);
+    } else {
+      await loadAbcFile(file);
     }
-    // Quitar selección activa de las piezas
-    document.querySelectorAll('.piece').forEach((b) => b.classList.remove('active'));
-    if (isPlaying && synthControl) synthControl.pause();
-    isPlaying = false;
-    updatePlayBtn();
-    renderPiece(abc);
-  };
-  reader.readAsText(file);
+  } catch (err) {
+    console.error('Error cargando archivo:', err);
+    alert('No se pudo cargar la partitura: ' + (err && err.message ? err.message : 'error desconocido'));
+  } finally {
+    // Permitir volver a subir el mismo archivo si hace falta
+    e.target.value = '';
+  }
+}
+
+function loadAbcFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const abc = String(reader.result || '');
+      if (!abc.includes('X:')) {
+        reject(new Error('El archivo no parece ser una partitura ABC válida (falta el encabezado "X:"). Buscá archivos .abc en abcnotation.com o subí un MusicXML de musescore.com.'));
+        return;
+      }
+      currentMode = 'abc';
+      renderPiece(abc);
+      resolve();
+    };
+    reader.onerror = () => reject(reader.error || new Error('Error leyendo el archivo'));
+    reader.readAsText(file);
+  });
+}
+
+async function loadMusicXmlFile(file, ext) {
+  showSplash(true);
+  try {
+    // 1) Asegurarnos que OSMD + Tone están cargados
+    if (typeof opensheetmusicdisplay === 'undefined' || typeof Tone === 'undefined') {
+      throw new Error('Las librerías de MusicXML no terminaron de cargar. Esperá unos segundos y volvé a intentar.');
+    }
+    if (!ensureXmlPlayerInit()) {
+      throw new Error('No se pudo inicializar el lector de MusicXML.');
+    }
+
+    // 2) Obtener el contenido XML (descomprimir si es .mxl)
+    let xmlString;
+    if (ext === 'mxl') {
+      if (typeof JSZip === 'undefined') {
+        throw new Error('JSZip no cargó (necesario para .mxl). Probá subir el archivo descomprimido (.musicxml).');
+      }
+      const buf = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      // Buscar el primer .xml/.musicxml que no esté en META-INF/
+      let scoreFile = null;
+      for (const fname of Object.keys(zip.files)) {
+        if (fname.startsWith('META-INF/')) continue;
+        if (/\.(xml|musicxml)$/i.test(fname)) {
+          scoreFile = zip.files[fname];
+          break;
+        }
+      }
+      if (!scoreFile) throw new Error('El archivo .mxl no contiene un score XML reconocible.');
+      xmlString = await scoreFile.async('string');
+    } else {
+      xmlString = await file.text();
+    }
+
+    // 3) Validación básica
+    const hasPartwise = xmlString && xmlString.includes('<score-partwise');
+    const hasTimewise = xmlString && xmlString.includes('<score-timewise');
+    if (!hasPartwise && !hasTimewise) {
+      throw new Error('El archivo no parece un MusicXML válido (no encontré <score-partwise> ni <score-timewise>).');
+    }
+
+    // 4) Cargar y renderizar
+    currentMode = 'xml';
+    await XmlPlayer.load(xmlString);
+    XmlPlayer.setTempo(currentTempoPct);
+
+    // 5) Mostrar paper-empty oculto
+    $('paper-empty').hidden = true;
+  } finally {
+    showSplash(false);
+  }
 }
 
 /* ---------- Resize: re-render para ajustar ancho ---------- */
@@ -398,7 +561,8 @@ let resizeTO = null;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTO);
   resizeTO = setTimeout(() => {
-    if (pendingABC) renderPiece(pendingABC);
+    // En modo xml, OSMD tiene autoResize y se encarga solo.
+    if (currentMode === 'abc' && pendingABC) renderPiece(pendingABC);
   }, 180);
 });
 
