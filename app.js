@@ -108,6 +108,8 @@ const $ = (id) => document.getElementById(id);
 
 /* ---------- Inicialización ---------- */
 function init() {
+  // Red de seguridad: el splash nunca debería verse al iniciar
+  showSplash(false);
   buildPiecesNav();
   hookControls();
   // abcjs se carga con defer; esperamos a que esté listo
@@ -269,11 +271,18 @@ function hookControls() {
 async function onTogglePlay() {
   if (!visualObj) return;
   showSplash(true);
+  // Timeout de seguridad: si el soundfont tarda >25s, no dejamos al usuario colgado
+  const timeoutId = setTimeout(() => {
+    showSplash(false);
+    alert('El sonido del piano tardó demasiado en cargar. Probá tocar Play de nuevo (la 2ª vez suele andar más rápido).');
+  }, 25000);
   try {
     await ensureAudioReady();
+    clearTimeout(timeoutId);
   } catch (e) {
+    clearTimeout(timeoutId);
     console.error('Audio falló al cargar:', e);
-    alert('No se pudo cargar el sonido del piano. Revisá la conexión a internet.');
+    alert('No se pudo cargar el sonido del piano: ' + (e && e.message ? e.message : 'error desconocido') + '. Revisá la conexión a internet.');
     showSplash(false);
     return;
   }
