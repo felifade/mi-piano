@@ -32,11 +32,15 @@ html, body {
 body {
   display: grid;
   grid-template-rows: auto auto 1fr auto auto;
+  height: 100vh;            /* fallback navegadores sin dvh */
+  height: 100dvh;           /* viewport real, descuenta UI dinámica */
   min-height: 100dvh;
+  max-height: 100dvh;       /* fuerza que las filas se ajusten dentro */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  overflow: hidden;          /* evita scroll del body; cada zona scrollea sola */
 }
 
 /* ===== Top bar ===== */
@@ -138,6 +142,7 @@ body {
   overflow: hidden;
   display: flex;
   justify-content: center;
+  min-height: 0;   /* permite que la fila 1fr realmente limite la altura */
 }
 .paper {
   background: var(--paper);
@@ -147,6 +152,8 @@ body {
   padding: 16px;
   width: 100%;
   max-width: 1100px;
+  height: 100%;
+  min-height: 0;   /* idem: scroll interno, no crece para empujar al teclado */
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
