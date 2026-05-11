@@ -182,6 +182,73 @@
     osmd.cursor.reset();
   }
 
+  /* ---------- Convertir índice de evento a segundos (en el bpm actual) ---------- */
+  function eventTimeSec(index) {
+    const ev = timeline[index];
+    if (!ev) return 0;
+    const tBase = (ev.timeQuarters * 60) / baseBpm;
+    return tBase / tempoFactor;
+  }
+
+  /* ---------- Encontrar el índice de evento más cercano a un tiempo (seg) ---------- */
+  function indexAtSec(sec) {
+    let idx = 0;
+    for (let i = 0; i < timeline.length; i++) {
+      if (eventTimeSec(i) > sec) { idx = Math.max(0, i - 1); return idx; }
+      idx = i;
+    }
+    return idx;
+  }
+
+  /* ---------- Reagendar desde un índice (común a play y seek) ---------- */
+  function scheduleFromIndex(startIndex) {
+    Tone.Transport.cancel();
+    for (let i = startIndex; i < timeline.length; i++) {
+      const event = timeline[i];
+      const tNow = eventTimeSec(i);
+      // Solo agendar los eventos del futuro relativo al inicio (ya seteamos Transport.seconds)
+      Tone.Transport.schedule((time) => {
+        // 1) Audio
+        if (sampler) {
+          event.notes.forEach((n) => {
+            const freq = Tone.Frequency(n.midi, 'midi').toFrequency();
+            const durSec = Math.max(
+              0.08,
+              (n.durQuarters * 60) / Math.max(1, Tone.Transport.bpm.value)
+            );
+            try { sampler.triggerAttackRelease(freq, durSec, time); } catch (e) {}
+          });
+        }
+        // 2) Visual: avanza cursor + ilumina teclado
+        Tone.Draw.schedule(() => {
+          if (i > startIndex) {
+            try { osmd.cursor.next(); } catch (e) {}
+          }
+          if (onNoteCb) onNoteCb(event.notes);
+        }, time);
+      }, tNow);
+    }
+
+    // Final
+    const totalNow = totalSeconds / tempoFactor + 0.4;
+    Tone.Transport.scheduleOnce((time) => {
+      Tone.Draw.schedule(() => {
+        Tone.Transport.stop();
+        if (onFinishedCb) onFinishedCb();
+      }, time);
+    }, totalNow);
+  }
+
+  /* ---------- Posicionar cursor OSMD en un índice de evento ---------- */
+  function positionCursorAtIndex(index) {
+    try {
+      osmd.cursor.reset();
+      for (let i = 0; i < index; i++) {
+        osmd.cursor.next();
+      }
+    } catch (e) { /* ignorar */ }
+  }
+
   /* ---------- Reproducción ---------- */
   async function play() {
     if (!timeline.length) return;
@@ -195,50 +262,33 @@
 
     try { osmd.cursor.reset(); } catch (e) {}
 
-    timeline.forEach((event, i) => {
-      // Tiempo en SEGUNDOS al tempo BASE; Tone escala con bpm automáticamente
-      // cuando le pasamos un Time relativo "Xn" (notación musical).
-      // Aquí pasamos quarter-notes directos: i * "4n" si fuera regular, pero como
-      // los stops son irregulares usamos seconds y ajustamos al bpm actual.
-      const tBase = (event.timeQuarters * 60) / baseBpm; // seg al bpm base
-      // Re-escala al tempoFactor actual
-      const tNow = tBase / tempoFactor;
-
-      Tone.Transport.schedule((time) => {
-        // 1) Audio
-        if (sampler) {
-          event.notes.forEach((n) => {
-            const freq = Tone.Frequency(n.midi, 'midi').toFrequency();
-            const durSec = Math.max(
-              0.08,
-              (n.durQuarters * 60) / Math.max(1, Tone.Transport.bpm.value)
-            );
-            try {
-              sampler.triggerAttackRelease(freq, durSec, time);
-            } catch (e) { /* ignorar */ }
-          });
-        }
-        // 2) Visual (cursor de OSMD + teclado) en main thread
-        Tone.Draw.schedule(() => {
-          if (i > 0) {
-            try { osmd.cursor.next(); } catch (e) {}
-          }
-          if (onNoteCb) onNoteCb(event.notes);
-        }, time);
-      }, tNow);
-    });
-
-    // Final
-    const totalNow = totalSeconds / tempoFactor + 0.4;
-    Tone.Transport.scheduleOnce((time) => {
-      Tone.Draw.schedule(() => {
-        Tone.Transport.stop();
-        if (onFinishedCb) onFinishedCb();
-      }, time);
-    }, totalNow);
+    scheduleFromIndex(0);
 
     await Tone.Transport.start();
     if (onStartCb) onStartCb();
+  }
+
+  /* ---------- Seek: avanzar/retroceder unos segundos ---------- */
+  function seek(deltaSec) {
+    if (!timeline.length) return;
+    const wasStarted = Tone.Transport.state === 'started';
+    Tone.Transport.pause();
+    if (sampler) { try { sampler.releaseAll(); } catch (e) {} }
+
+    const currentSec = Tone.Transport.seconds;
+    const maxSec = totalSeconds / tempoFactor;
+    const newSec = Math.max(0, Math.min(maxSec - 0.1, currentSec + deltaSec));
+
+    // Encontrar índice del evento más cercano al nuevo tiempo
+    const newIndex = indexAtSec(newSec);
+    const alignedSec = eventTimeSec(newIndex);
+
+    // Reagendar y mover cursor + Transport
+    scheduleFromIndex(newIndex);
+    positionCursorAtIndex(newIndex);
+    Tone.Transport.seconds = alignedSec;
+
+    if (wasStarted) Tone.Transport.start();
   }
 
   function pauseInternal() {
@@ -300,7 +350,7 @@
   }
 
   window.XmlPlayer = {
-    init, load, togglePlay, restart, stop, setTempo,
+    init, load, togglePlay, restart, stop, setTempo, seek,
     setNoteCallback, setFinishedCallback, setStartCallback,
     isReady, isPlaying
   };

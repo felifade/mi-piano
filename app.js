@@ -6,6 +6,22 @@
 /* ---------- Catálogo de piezas (ABC notation, dominio público) ---------- */
 const PIECES = [
   {
+    id: 'mananitas',
+    title: 'Las Mañanitas',
+    composer: 'Tradicional (México) 🌹',
+    abc: `X:1
+T:Las Mañanitas
+C:Tradicional (México)
+M:3/4
+L:1/4
+Q:1/4=110
+K:G
+G G G | G B A | G F E | D3 |
+G G G | G B A | G F E | D3 |
+B B B | B d c | B A G | A3 |
+B B B | B d c | B A G | G3 |]`
+  },
+  {
     id: 'estrellita',
     title: 'Estrellita',
     composer: 'Tradicional',
@@ -90,6 +106,54 @@ Q:1/4=120
 K:C
 G G E | G E C | F F D | F D B, |
 G G E | G E C | F D B, | C3 |]`
+  },
+  {
+    id: 'aulalune',
+    title: 'Al claro de la luna',
+    composer: 'Tradicional (Francia)',
+    abc: `X:1
+T:Al claro de la luna
+C:Au Clair de la Lune — Tradicional
+M:4/4
+L:1/4
+Q:1/4=104
+K:C
+C C C D | E2 D2 | C E D D | C4 |
+C C C D | E2 D2 | C E D D | C4 |
+D D D D | A,2 A,2 | D C B, A, | G,4 |
+C C C D | E2 D2 | C E D D | C4 |]`
+  },
+  {
+    id: 'cuna',
+    title: 'Canción de cuna',
+    composer: 'J. Brahms',
+    abc: `X:1
+T:Canción de cuna
+C:J. Brahms — Wiegenlied Op. 49 N.º 4
+M:3/4
+L:1/4
+Q:1/4=84
+K:F
+F F A | F F A | F A c | B A2 |
+G G B | A A2 | G G B | A A2 |
+A c B | A G F | E D C | F2 z |
+A c B | A G F | E D C | F3 |]`
+  },
+  {
+    id: 'greensleeves',
+    title: 'Greensleeves',
+    composer: 'Tradicional (Inglaterra, s. XVI)',
+    abc: `X:1
+T:Greensleeves
+C:Tradicional (Inglaterra)
+M:6/8
+L:1/8
+Q:3/8=68
+K:Am
+A2 c d2 e | f2 e d2 B | G2 A B2 G | E2 ^F E3 |
+A2 c d2 e | f2 e d2 B | G2 A B2 ^G | A2 ^G A3 |
+e3 e2 ^d | e2 ^f g2 e | d2 B G2 A | B2 c A3 |
+e3 e2 ^d | e2 ^f g2 e | d2 B G2 ^G | A2 ^G A3 |]`
   }
 ];
 
@@ -103,6 +167,10 @@ let currentTempoPct = 100;
 let lastHighlight = null;
 let abcjsReady = false;
 let pendingABC = PIECES[0].abc;
+// Posición actual en ms para el seek (modo ABC)
+let currentMs = 0;
+let totalMs = 0;
+const SEEK_DELTA_SEC = 5;
 // Modo activo: 'abc' (abcjs) o 'xml' (OSMD + Tone.js)
 let currentMode = 'abc';
 let xmlPlayerInitialized = false;
@@ -271,6 +339,11 @@ const cursorControl = {
   },
   onBeat: function () {},
   onEvent: function (ev) {
+    // 0) Trackear tiempo actual (para los botones de retroceder/avanzar)
+    if (typeof ev.milliseconds === 'number') {
+      currentMs = ev.milliseconds;
+    }
+
     // 1) Resaltar la nota en la partitura
     if (lastHighlight) lastHighlight.classList.remove('current-note');
     if (ev.elements && ev.elements.length) {
@@ -333,19 +406,59 @@ async function ensureAudioReady() {
       chordsOff: false
     });
     synthControl.setWarp(currentTempoPct);
+    // Duración total de la pieza (en ms) para clamp del seek
+    totalMs = computeTotalMsAbc();
+    currentMs = 0;
     needsReload = false;
   }
+}
+
+function computeTotalMsAbc() {
+  try {
+    if (synthControl && synthControl.timer && synthControl.timer.totalDuration) {
+      return synthControl.timer.totalDuration * 1000;
+    }
+    if (visualObj && typeof visualObj.millisecondsPerMeasure === 'function') {
+      const measures = (visualObj.getTotalTime && visualObj.getTotalTime()) || 16;
+      return visualObj.millisecondsPerMeasure() * measures;
+    }
+  } catch (e) {}
+  return 60000; // 1 min fallback
 }
 
 /* ---------- Controles ---------- */
 function hookControls() {
   $('btn-play').addEventListener('click', onTogglePlay);
   $('btn-restart').addEventListener('click', onRestart);
+  $('btn-back').addEventListener('click', () => onSeek(-SEEK_DELTA_SEC));
+  $('btn-fwd').addEventListener('click', () => onSeek(+SEEK_DELTA_SEC));
   $('tempo').addEventListener('input', onTempo);
   $('file-input').addEventListener('change', onFile);
 
   // Estilo del slider de tempo
   paintTempo(currentTempoPct);
+}
+
+/* ---------- Seek (retroceder / avanzar unos segundos) ---------- */
+async function onSeek(deltaSec) {
+  if (currentMode === 'xml') {
+    if (window.XmlPlayer && XmlPlayer.isReady() && typeof XmlPlayer.seek === 'function') {
+      XmlPlayer.seek(deltaSec);
+      if (window.PianoKeyboard) PianoKeyboard.clearAll();
+    }
+    return;
+  }
+  // Modo ABC
+  if (!synthControl || needsReload) return;
+  const newMs = Math.max(0, Math.min(totalMs || 60000, currentMs + deltaSec * 1000));
+  try {
+    // abcjs.synth.SynthController.seek(position, units) — units: "seconds" o "percent" (0-1)
+    synthControl.seek(newMs / 1000, 'seconds');
+    currentMs = newMs;
+    if (window.PianoKeyboard) PianoKeyboard.clearAll();
+  } catch (e) {
+    console.warn('seek falló:', e);
+  }
 }
 
 async function onTogglePlay() {
