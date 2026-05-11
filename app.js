@@ -14,12 +14,12 @@ T:Las Mañanitas
 C:Tradicional (México)
 M:3/4
 L:1/4
-Q:1/4=110
-K:G
-G G G | G B A | G F E | D3 |
-G G G | G B A | G F E | D3 |
-B B B | B d c | B A G | A3 |
-B B B | B d c | B A G | G3 |]`
+Q:1/4=120
+K:C
+G G c | c B c | d B c | d e c |
+d e f | f f e | d c B | d3 |
+G G c | c B c | d B c | d e c |
+d e f | f f e | d c B | c3 |]`
   },
   {
     id: 'estrellita',
